@@ -1,0 +1,114 @@
+# begin of Hypermedia GraphQL definition
+"""
+The ResourceIdentifier directive must be applied to all the field definitions which are required to identify a resource.
+"""
+directive @ResourceIdentifier on FIELD_DEFINITION
+scalar _ResourceInput
+"""
+Resource must be implemented by all types which are being used as resources.
+All identifiers must be marked using the @ResourceIdentifier directive.
+"""
+interface Resource {
+    actions: [_Action]
+}
+
+extend type Mutation {
+    _action(subjects: [_ResourceInput!]! objects: [_ResourceInput!] action: _Action!):_Resource
+}
+
+extend type Query {
+    _resource(subject: _ResourceInput!):_Resource
+}
+
+# end of Hypermedia GraphQL definition
+#
+# beginning of Hypermedia GraphQL implementation
+
+"""
+All Resources must be added to the _Resource union.
+"""
+union _Resource = Cart | Item
+
+"""
+All possible actions must be added to the _Action enum
+"""
+enum _Action {
+    checkout
+    addToCart
+    removeFromCart
+}
+
+# end of Hypermedia GraphQL implementation
+
+type Cart implements Resource {
+    id: ID! @ResourceIdentifier
+    items: [Item]
+    actions: [_Action]
+}
+
+type Item implements Resource {
+    id: ID! @ResourceIdentifier
+    name: String
+    actions: [_Action]
+}
+
+type Query {
+    cart(id: ID!): Cart
+    item(id: ID!): Item
+}
+
+type Mutation {
+
+}
+
+query GetItem($id: ID!){
+    item(id: $id){
+        id
+        name
+        actions
+    }
+}
+
+query GetCart($id: ID!) {
+    cart(id: $id){
+        id
+        items {
+            id
+            name
+        }
+        actions
+    }
+}
+
+mutation AddItemToCart ($item: _ResourceInput! $cart: _ResourceInput!) {
+    _action(action: addToCart,subjects: [$item], objects: [$cart]){
+        ... on Cart {
+            id
+        }
+    }
+}
+
+# variables: {"item":{"__typename":"Item","id":1},"cart":{"__typename":"Cart","id":1}}
+
+mutation RemoveItemFromCart ($item: _ResourceInput! $cart: _ResourceInput!) {
+    _action(action: removeFromCart,subjects: [$item], objects: [$cart]){
+        ... on Cart {
+            id
+        }
+    }
+}
+
+# variables: {"item":{"__typename":"Item","id":1},"cart":{"__typename":"Cart","id":1}}
+
+mutation Checkout ($cart: _ResourceInput!){
+    _action(action: checkout, subjects: [$cart]){
+        ... on Cart {
+            id
+            items {
+                id
+            }
+        }
+    }
+}
+
+# variables: {"cart":{"__typename":"Cart","id":1}}
